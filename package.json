@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "ramda": "^0.25.0",
+    "ynab": "^1.0.0"
+  },
+  "devDependencies": {
+    "prettier": "^1.13.7"
+  }
+}
