@@ -1,4 +1,7 @@
 {
+  "scripts": {
+    "start": "node index.js"
+  },
   "dependencies": {
     "date-fns": "^1.29.0",
     "ramda": "^0.25.0",

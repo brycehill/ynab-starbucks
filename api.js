@@ -1,7 +1,8 @@
 const { API } = require('ynab')
 const { path } = require('ramda')
 const isFuture = require('date-fns/is_future')
-const { accessToken, budgetId } = require('./.config')
+const accessToken = process.env.YNAB_ACCESS_TOKEN
+const budgetId = process.env.YNAB_BUDGET_ID
 const {
   getSbuxPayeeIds,
   getGroceryCategory,
