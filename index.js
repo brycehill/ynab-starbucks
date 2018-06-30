@@ -1,64 +1,88 @@
-const ynab = require('ynab')
-const R = require('ramda')
-const accessToken = ''
-const api = new ynab.API(accessToken)
-const budgetId = '305cce10-2f51-45f2-b40f-f087cfac00b7'
+const { API } = require('ynab')
+const { accessToken, budgetId } = require('./.config')
+const isFuture = require('date-fns/is_future')
+const {
+  chain,
+  compose,
+  converge,
+  divide,
+  filter,
+  length,
+  path,
+  prop,
+  pluck,
+  sum,
+  tap,
+  test
+} = require('ramda')
+
+const api = new API(accessToken)
+
+/**
+ * Helpers
+ */
+
+const avg = converge(divide, [sum, length])
+const filterZero = filter(([amt]) => amt !== 0)
+const filterName = regex =>
+  filter(
+    compose(
+      test(regex),
+      prop('name')
+    )
+  )
+
+// Given an API response, find all starbucks related payees and return
+// a list of their ids
+const getSbuxPayeeIds = compose(
+  pluck('id'),
+  filterName(/starbucks/i),
+  path(['data', 'payees'])
+)
+
+//
+const sumSbuxTransactions = sbuxIds =>
+  compose(
+    Math.abs,
+    sum,
+    pluck('amount'),
+    filter(t => sbuxIds.includes(t.payee_id)),
+    path(['data', 'transactions'])
+  )
+
+const getGroceryCategory = compose(
+  chain(prop('budgeted')),
+  filterName(/grocer[ie|y]+s?/i),
+  path(['data', 'month', 'categories'])
+)
 
 const totalStarbuxSpend = () =>
-  api.transactions
-    .getTransactions(budgetId)
-    .then(R.path(['data', 'transactions']))
-    .then(ts => {
-      return R.sum(
-        ts
-          .filter(t => sbux.includes(t.payee_id))
-          .map(({ amount }) =>
-            ynab.utils.convertMilliUnitsToCurrencyAmount(amount, 2)
+  Promise.all([
+    api.payees.getPayees(budgetId),
+    api.transactions.getTransactions(budgetId)
+  ]).then(([payees, transactions]) =>
+    sumSbuxTransactions(getSbuxPayeeIds(payees))(transactions)
+  )
+
+const allGroceryBudgets = () =>
+  api.months
+    .getBudgetMonths(budgetId)
+    .then(path(['data', 'months']))
+    .then(ms =>
+      Promise.all(
+        ms
+          .filter(({ month }) => !isFuture(month))
+          .map(({ month }) =>
+            api.months.getBudgetMonth(budgetId, month).then(getGroceryCategory)
           )
       )
-    })
+    )
 
-const groceryCategories = () =>
-  api.categories
-    .getCategories(budgetId)
-    .then(R.path(['data', 'category_groups']))
-    .then(cgs => {
-      const categories = R.flatten(cgs.map(cg => cg.categories))
-      return categories.filter(c => {
-        // console.log(c)
-        return /groceries/i.test(c.name)
-      })
-    })
-
-api.payees
-  .getPayees(budgetId)
-  .catch(err => console.error(err))
-  .then(R.path(['data', 'payees']))
-  .then(ps => {
-    const sbux = ps
-      .filter(({ name }) => /starbucks/i.test(name))
-      .map(({ id }) => id)
-
-    return Promise.all([
-      // totalStarbuxSpend(),
-      // groceryCategories()
-      // api.months
-      //   .getBudgetMonths(budgetId)
-      //   .then(R.path(['data', 'months']))
-      //   .then(ms => {
-      //     console.log(ms)
-      //     return Promise.all(
-      //       ms.map(m =>
-      //         api.months.getBudgetMonth(budgetId, m).then(R.prop('data'))
-      //       )
-      //     )
-      //   })
-      //   .catch(err => console.error(err))
-    ])
-      .then(([sbuxAmount, months]) => {
-        console.log(sbuxAmount, months)
-        // Then find the average amount of groceries spent and divide sbux into it
-        // to determine the number of months
-      })
-      .catch(err => console.error(err))
-  })
+Promise.all([totalStarbuxSpend(), allGroceryBudgets()]).then(
+  ([totalSpentAtSbux, months]) => {
+    const monthsOfGroceries = totalSpentAtSbux / avg(filterZero(months))
+    console.log(
+      `You have spent ${monthsOfGroceries.toFixed()} months worth of grocery budget on Starbucks`
+    )
+  }
+)
