@@ -1,2 +1,5 @@
+.stack-work/
+ynab-starbucks.cabal
+*~
+js/node_modules
 node_modules
-.config.js

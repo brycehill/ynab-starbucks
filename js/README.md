@@ -1,9 +1,5 @@
-# ynab-starbucks
-
-### JS
 ```sh
 # Install Deps
-❯ cd js
 ❯ yarn
 
 # Add your access token
