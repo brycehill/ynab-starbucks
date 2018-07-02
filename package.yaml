@@ -33,8 +33,14 @@ executables:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+    - -Wall
     dependencies:
     - ynab-starbucks
+    - bytestring
+    - wreq
+    - lens
+    - aeson
+    - lens-aeson
 
 tests:
   ynab-starbucks-test:
